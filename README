@@ -1,0 +1,18 @@
+Here in the practicePython folder, there are 2 scripts, wordCountTest.py was given to us to test if our written script, wordCount.py is valid. The wordCount.py:
+
+    takes as input the name of an input file and output file
+    example
+And:
+
+    keeps track of the total the number of times each word occurs in the text file
+    excluding white space and punctuation
+    is case-insensitive
+    print out to the output file (overwriting if it exists) the list of words sorted in descending order with their respective totals separated by a space, one word per line
+
+This is how to run the given script:
+
+    $ python wordCount.py input.txt output.txt
+
+wordCountTest.py takes in a text file, output file, and a key file. This test program takes the generated output file from wordCount.py and notes any differences with the key file. It tells you if you passed or not. An example use is:
+
+    $ python wordCountTest.py declaration.txt myOutput.txt declarationKey.txt
