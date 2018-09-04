@@ -1,4 +1,4 @@
-Here in the python-intro folder, there are 2 scripts, wordCountTest.py was given to us to test if our written script, wordCount.py is valid. The wordCount.py:
+Here in the python-intro folder, there are 2 python scripts, wordCountTest.py was given to us to test if our written script, wordCount.py is valid. The wordCount.py:
 
     takes as input the name of an input file and output file
     example
