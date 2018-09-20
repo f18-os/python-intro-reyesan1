@@ -29,10 +29,7 @@ def pipeCall(args, i):
                 os.execve(program, args1, os.environ) # try to exec program
             except FileNotFoundError:             # ...expected
                 pass                              # ...fail quietly 
-    #else:
-    #    os.write(2,("Waiting").encode())
-    #    os.wait()
-    #    os.write(2,("Done waiting").encode())
+
     rc = os.fork()
 
     if rc < 0:
@@ -59,19 +56,25 @@ def pipeCall(args, i):
         for fd in (pw, pr):
             os.close(fd)
     
-def redirectCall(args, index):
+def redirectCall(args, index, direction):
     rc = os.fork()
    
     if rc < 0:
         os.write(2, ("fork failed, returning %d\n" % rc).encode())
         sys.exit(1)
     elif rc == 0:                   # child
-        os.close(1)                 # redirect child's stdout
-        sys.stdout = open(args[-1], "w+")
-        fd = sys.stdout.fileno() # os.open(myFile, os.O_CREAT)
-        os.set_inheritable(fd, True)
-
+        if direction == "out":
+            os.close(1)                 # redirect child's stdout
+            sys.stdout = open(args[-1], "w+")
+            fd = sys.stdout.fileno() # os.open(myFile, os.O_CREAT)
+            os.set_inheritable(fd, True)
+        elif direction == "in":
+            os.close(0)                 # redirect child's stdout
+            sys.stdin = open(args[-1], "r")
+            fd = sys.stdin.fileno() # os.open(myFile, os.O_CREAT)
+            os.set_inheritable(fd, True)
         del args[-1]
+
         for dir in re.split(":", os.environ['PATH']): # try each directory in path
             program = "%s/%s" % (dir, args[0])
             try:
@@ -110,12 +113,18 @@ while usrInput != "exit":
             if a == '>':
                 redirect = True
                 del args[(index-1)]
-                redirectCall(args, index)
+                redirectCall(args, index, "out")
                 continue
                 break
             if a == '|':
                 pipe = True
                 pipeCall(args, index)
+                continue
+                break
+            if a == '<':
+                redirect = True
+                del args[(index-1)]
+                redirectCall(args, index, "in")
                 continue
                 break
 
