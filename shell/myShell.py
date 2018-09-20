@@ -2,15 +2,20 @@
 
 import fileinput
 import os, sys, time, re
+
+# Function for when pipe is called
 def pipeCall(args, i):
-    # Setting new file descriptors, read and write
+
+    # Getting left and right pipe arguments
     args1 = args[:(i-1)]
     args2 = args[i:]
 
+    # Setting new file descriptors, read and write
     pr,pw = os.pipe()
 
+    # Forking left child of pipe
     lc = os.fork()
-
+    
     if lc < 0:
         sys.exit(1)
 
@@ -30,6 +35,7 @@ def pipeCall(args, i):
             except FileNotFoundError:             # ...expected
                 pass                              # ...fail quietly 
 
+    # Forking right child of pipe
     rc = os.fork()
 
     if rc < 0:
@@ -55,19 +61,22 @@ def pipeCall(args, i):
         os.dup(pr)
         for fd in (pw, pr):
             os.close(fd)
-    
+
+# Redirecting Function
 def redirectCall(args, index, direction):
     rc = os.fork()
    
     if rc < 0:
         os.write(2, ("fork failed, returning %d\n" % rc).encode())
         sys.exit(1)
-    elif rc == 0:                   # child
+    elif rc == 0:                  # child
+        # If output redirection
         if direction == "out":
             os.close(1)                 # redirect child's stdout
             sys.stdout = open(args[-1], "w+")
             fd = sys.stdout.fileno() # os.open(myFile, os.O_CREAT)
             os.set_inheritable(fd, True)
+        # If input redirection
         elif direction == "in":
             os.close(0)                 # redirect child's stdout
             sys.stdin = open(args[-1], "r")
@@ -91,40 +100,56 @@ def redirectCall(args, index, direction):
 
 usrInput = ""
 while usrInput != "exit":
+    # Try for EOF
     try:
         prompt = "shell$>"
+        # Getting PS1
         if 'PS1' in os.environ:
             prompt = os.environ['PS1']
 
         usrInput = input("%s" % prompt)
 
+        # Checking if user wants to exit
         if usrInput.strip() == "exit":
-            sys.exit(0) 
+            sys.exit(0)
+        # If user input is cd 
         if usrInput[:2] == "cd":
+            # If user wants to go back one directory
             if usrInput[3:].strip() == "..":
+                # Getting current directory
                 curr = os.getcwd()
+                # Spliting at each directory
                 curr = curr.split("/")
+                # Deleting the last directory
                 del curr[-1]
+                # Joining them back as a string without last directory
                 path= '/'.join(curr)
+                # Going to previous directory
                 os.chdir(path)
             else: 
+                # Going to regular directory path
                 os.chdir(usrInput[3:])
             continue
 
         pid = os.getpid()               # get and remember pid
 
- 
+        # Splittin input into array
         args = usrInput.split()
+        # Sleep flag for call
         sleep = False
+        # If sleep call found
         if '&' in usrInput:
             sleep = True
             find = 0
+            # Removing & if found
             for u in args:
                 if u == '&':
                     del args[find]
                 find +=1
+        # Redirect and pipe flags
         redirect = False
         pipe = False
+        # Finding index of operators
         index = 0
         for a in args:
             index += 1
@@ -145,8 +170,9 @@ while usrInput != "exit":
                 redirectCall(args, index, "in")
                 continue
                 break
-
+        # If no inputs
         if not pipe and not redirect:
+            # If full path command entered
             if usrInput[0] == "/":
                 program = args[0]
                 try:
@@ -154,7 +180,7 @@ while usrInput != "exit":
                 except FileNotFoundError:             # ...expected
                     pass                              # ...fail quietly 
 
-                
+            # For general commands
             rc = os.fork()
 
             if rc < 0:
