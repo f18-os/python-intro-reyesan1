@@ -8,6 +8,7 @@ def pipeCall(args, i):
     args2 = args[i:]
 
     pr,pw = os.pipe()
+
     lc = os.fork()
 
     if lc < 0:
@@ -15,6 +16,7 @@ def pipeCall(args, i):
 
     elif lc == 0:                   #  child - will write to pipe
         os.close(1)                 # redirect child's stdout
+
         os.dup(pw)
         for fd in (pr, pw):
             os.close(fd)
@@ -27,8 +29,10 @@ def pipeCall(args, i):
                 os.execve(program, args1, os.environ) # try to exec program
             except FileNotFoundError:             # ...expected
                 pass                              # ...fail quietly 
-
-
+    #else:
+    #    os.write(2,("Waiting").encode())
+    #    os.wait()
+    #    os.write(2,("Done waiting").encode())
     rc = os.fork()
 
     if rc < 0:
@@ -83,11 +87,12 @@ def redirectCall(args, index):
 
 usrInput = ""
 while usrInput != "exit":
+    try:
         prompt = "shell$>"
         if 'PS1' in os.environ:
             prompt = os.environ['PS1']
 
-        usrInput = input("%s " % prompt)
+        usrInput = input("%s" % prompt)
 
         if usrInput.strip() == "exit":
             sys.exit(0) 
@@ -116,6 +121,13 @@ while usrInput != "exit":
 
 #        os.write(1, ("About to fork (pid=%d)\n" % pid).encode())
         if not pipe and not redirect:
+            if usrInput[0] == "/":
+                program = args[0]
+                try:
+                    os.execve(program, args, os.environ) # try to exec program
+                except FileNotFoundError:             # ...expected
+                    pass                              # ...fail quietly 
+
             rc = os.fork()
 
             if rc < 0:
@@ -123,15 +135,6 @@ while usrInput != "exit":
                 sys.exit(1)
 
             elif rc == 0:                   # child
-                if usrInput[0] == "/":
-                    program = usrInput
-                    try:
-                        os.execve(program, args, os.environ) # try to exec program
-                    except FileNotFoundError:             # ...expected
-                        pass                              # ...fail quietly 
-
-                    continue
-     
                 for dir in re.split(":", os.environ['PATH']): # try each directory in path
                     program = "%s/%s" % (dir, args[0])
                     try:
@@ -144,3 +147,5 @@ while usrInput != "exit":
 
             else:                           # parent (forked ok)
                 childPidCode = os.wait()
+    except EOFError:
+        sys.exit(0)
