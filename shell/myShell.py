@@ -86,7 +86,8 @@ def redirectCall(args, index, direction):
         sys.exit(1)                 # terminate with error
 
     else:                           # parent (forked ok)
-        childPidCode = os.wait()
+        if not sleep: 
+            childPidCode = os.wait()
 
 usrInput = ""
 while usrInput != "exit":
@@ -100,11 +101,28 @@ while usrInput != "exit":
         if usrInput.strip() == "exit":
             sys.exit(0) 
         if usrInput[:2] == "cd":
-            os.chdir(usrInput[3:])
+            if usrInput[3:].strip() == "..":
+                curr = os.getcwd()
+                curr = curr.split("/")
+                del curr[-1]
+                path= '/'.join(curr)
+                os.chdir(path)
+            else: 
+                os.chdir(usrInput[3:])
             continue
 
         pid = os.getpid()               # get and remember pid
+
+ 
         args = usrInput.split()
+        sleep = False
+        if '&' in usrInput:
+            sleep = True
+            find = 0
+            for u in args:
+                if u == '&':
+                    del args[find]
+                find +=1
         redirect = False
         pipe = False
         index = 0
@@ -128,7 +146,6 @@ while usrInput != "exit":
                 continue
                 break
 
-#        os.write(1, ("About to fork (pid=%d)\n" % pid).encode())
         if not pipe and not redirect:
             if usrInput[0] == "/":
                 program = args[0]
@@ -137,6 +154,7 @@ while usrInput != "exit":
                 except FileNotFoundError:             # ...expected
                     pass                              # ...fail quietly 
 
+                
             rc = os.fork()
 
             if rc < 0:
@@ -155,6 +173,7 @@ while usrInput != "exit":
                 sys.exit(1)                 # terminate with error
 
             else:                           # parent (forked ok)
-                childPidCode = os.wait()
+                if not sleep:
+                    childPidCode = os.wait()
     except EOFError:
         sys.exit(0)
