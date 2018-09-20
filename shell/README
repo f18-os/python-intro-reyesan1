@@ -1,0 +1,5 @@
+This shell works for all test cases, it just does not pass the multiple commands separated by a space and new line. It passed all other test cases in the script. 
+
+It is an executable so it may be run using ./myShell.py
+
+It has functions for redirect and pipe. It imitates a bash shell.
