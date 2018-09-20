@@ -8,12 +8,12 @@ def pipeCall(args, i):
     args2 = args[i:]
 
     pr,pw = os.pipe()
-    rc = os.fork()
+    lc = os.fork()
 
-    if rc < 0:
+    if lc < 0:
         sys.exit(1)
 
-    elif rc == 0:                   #  child - will write to pipe
+    elif lc == 0:                   #  child - will write to pipe
         os.close(1)                 # redirect child's stdout
         os.dup(pw)
         for fd in (pr, pw):
@@ -29,12 +29,12 @@ def pipeCall(args, i):
                 pass                              # ...fail quietly 
 
 
-    lc = os.fork()
+    rc = os.fork()
 
-    if lc < 0:
+    if rc < 0:
         sys.exit(1)
 
-    elif lc == 0:                   #  child - will write to pipe
+    elif rc == 0:                   #  child - will write to pipe
         os.close(0)                 # redirect child's stdout
         os.dup(pr)
         for fd in (pr, pw):
@@ -50,21 +50,24 @@ def pipeCall(args, i):
                 pass                              # ...fail quietly 
            
     else:                           # parent (forked ok)
-        #os.close(0)
         childPidCode = os.wait()
         os.dup(pr)
         for fd in (pw, pr):
             os.close(fd)
     
-def redirectCall(args):
+def redirectCall(args, index):
     rc = os.fork()
+   
     if rc < 0:
         os.write(2, ("fork failed, returning %d\n" % rc).encode())
         sys.exit(1)
     elif rc == 0:                   # child
-        sys.stdout = open(args[index], "w")
+        os.close(1)                 # redirect child's stdout
+        sys.stdout = open(args[-1], "w+")
         fd = sys.stdout.fileno() # os.open(myFile, os.O_CREAT)
         os.set_inheritable(fd, True)
+
+        del args[-1]
         for dir in re.split(":", os.environ['PATH']): # try each directory in path
             program = "%s/%s" % (dir, args[0])
             try:
@@ -80,7 +83,12 @@ def redirectCall(args):
 
 usrInput = ""
 while usrInput != "exit":
-        usrInput = input("$ ")
+        prompt = "shell$>"
+        if 'PS1' in os.environ:
+            prompt = os.environ['PS1']
+
+        usrInput = input("%s " % prompt)
+
         if usrInput.strip() == "exit":
             sys.exit(0) 
         if usrInput[:2] == "cd":
@@ -96,12 +104,14 @@ while usrInput != "exit":
             index += 1
             if a == '>':
                 redirect = True
-                os.close(1)                 # redirect child's stdout
-                redirectCall(args)
+                del args[(index-1)]
+                redirectCall(args, index)
+                continue
                 break
             if a == '|':
                 pipe = True
                 pipeCall(args, index)
+                continue
                 break
 
 #        os.write(1, ("About to fork (pid=%d)\n" % pid).encode())
@@ -113,6 +123,15 @@ while usrInput != "exit":
                 sys.exit(1)
 
             elif rc == 0:                   # child
+                if usrInput[0] == "/":
+                    program = usrInput
+                    try:
+                        os.execve(program, args, os.environ) # try to exec program
+                    except FileNotFoundError:             # ...expected
+                        pass                              # ...fail quietly 
+
+                    continue
+     
                 for dir in re.split(":", os.environ['PATH']): # try each directory in path
                     program = "%s/%s" % (dir, args[0])
                     try:
